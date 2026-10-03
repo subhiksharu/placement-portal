@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import StudentDashboard from './pages/StudentDashboard';
+import CompanyDashboard from './pages/CompanyDashboard';
+import TPODashboard from './pages/TPODashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 
-function App() {
-  const [message, setMessage] = useState('Loading...');
-
-  useEffect(() => {
-    axios
-      .get('http://localhost:5000/')
-      .then((res) => setMessage(res.data.message))
-      .catch(() => setMessage('Cannot reach the server'));
-  }, []);
-
-  return <h1>{message}</h1>;
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/student" element={<ProtectedRoute role="student"><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/company" element={<ProtectedRoute role="company"><CompanyDashboard /></ProtectedRoute>} />
+      <Route path="/tpo" element={<ProtectedRoute role="tpo"><TPODashboard /></ProtectedRoute>} />
+    </Routes>
+  );
 }
-
-export default App;
