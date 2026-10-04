@@ -5,6 +5,8 @@ export default function EligibleJobs({ onGoProfile }) {
   const [data, setData] = useState({ eligible: [], ineligible: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [applyingId, setApplyingId] = useState(null);
   const [showIneligible, setShowIneligible] = useState(false);
 
   useEffect(() => {
@@ -15,15 +17,32 @@ export default function EligibleJobs({ onGoProfile }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const apply = async (jobId) => {
+    setMessage('');
+    setApplyingId(jobId);
+    try {
+      await api.post('/applications', { jobId });
+      setData((prev) => ({
+        ...prev,
+        eligible: prev.eligible.map((j) =>
+          j._id === jobId ? { ...j, hasApplied: true } : j
+        ),
+      }));
+      setMessage('Application submitted');
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Could not apply');
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
   if (loading) return <p>Loading jobs...</p>;
 
   if (error) {
     return (
       <div>
         <p style={{ color: 'crimson' }}>{error}</p>
-        {error.includes('profile') && (
-          <button onClick={onGoProfile}>Go to Profile</button>
-        )}
+        {error.includes('profile') && <button onClick={onGoProfile}>Go to Profile</button>}
       </div>
     );
   }
@@ -32,6 +51,8 @@ export default function EligibleJobs({ onGoProfile }) {
 
   return (
     <div>
+      {message && <p><strong>{message}</strong></p>}
+
       <h3>Jobs You Are Eligible For ({data.eligible.length})</h3>
       {data.eligible.length === 0 && <p>No eligible jobs right now.</p>}
 
@@ -49,13 +70,19 @@ export default function EligibleJobs({ onGoProfile }) {
             )}
           </p>
           <small>Deadline: {new Date(job.deadline).toLocaleDateString()}</small>
+          <div style={{ marginTop: 8 }}>
+            {job.hasApplied ? (
+              <button disabled>Applied ✓</button>
+            ) : (
+              <button onClick={() => apply(job._id)} disabled={applyingId === job._id}>
+                {applyingId === job._id ? 'Applying...' : 'Apply'}
+              </button>
+            )}
+          </div>
         </div>
       ))}
 
-      <h3
-        style={{ cursor: 'pointer' }}
-        onClick={() => setShowIneligible(!showIneligible)}
-      >
+      <h3 style={{ cursor: 'pointer' }} onClick={() => setShowIneligible(!showIneligible)}>
         {showIneligible ? '▼' : '▶'} Not Eligible ({data.ineligible.length})
       </h3>
 

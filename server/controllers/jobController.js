@@ -1,5 +1,6 @@
 const Company = require('../models/Company');
 const Job = require('../models/Job');
+const Application = require('../models/Application');
 const StudentProfile = require('../models/StudentProfile');
 const { checkEligibility, skillMatch } = require('../utils/eligibility');
 
@@ -132,6 +133,13 @@ exports.getEligibleJobs = async (req, res) => {
       .sort('deadline')
       .lean();
 
+    // Get jobs already applied for by this student
+    const appliedIds = new Set(
+      (await Application.find({ student: req.user.id }).select('job')).map((a) =>
+        String(a.job)
+      )
+    );
+
     const eligible = [];
     const ineligible = [];
 
@@ -141,6 +149,7 @@ exports.getEligibleJobs = async (req, res) => {
       if (result.eligible) {
         eligible.push({
           ...job,
+          hasApplied: appliedIds.has(String(job._id)),
           skillMatch: skillMatch(
             profile.skills,
             job.skillsRequired

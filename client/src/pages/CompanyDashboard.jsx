@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import JobApplicants from '../components/JobApplicants';
 
 const emptyProfile = { companyName: '', website: '', industry: '', description: '' };
 const emptyJob = {
@@ -16,12 +17,14 @@ export default function CompanyDashboard() {
   const { user, logout } = useAuth();
 
   const [profile, setProfile] = useState(emptyProfile);
-  const [status, setStatus] = useState(null); // null = profile not created yet
+  const [status, setStatus] = useState(null);
   const [profileMsg, setProfileMsg] = useState('');
 
   const [jobForm, setJobForm] = useState(emptyJob);
   const [jobs, setJobs] = useState([]);
   const [jobMsg, setJobMsg] = useState('');
+
+  const [openJobId, setOpenJobId] = useState(null);
 
   const loadJobs = () => api.get('/jobs/my').then(({ data }) => setJobs(data));
 
@@ -109,6 +112,7 @@ export default function CompanyDashboard() {
           </span>
         )}
       </h3>
+
       {status === 'pending' && <p>Waiting for TPO approval. You can post jobs once approved.</p>}
       {status === 'rejected' && <p>Your company was rejected by the TPO.</p>}
       {profileMsg && <p>{profileMsg}</p>}
@@ -130,10 +134,12 @@ export default function CompanyDashboard() {
           <input name="title" placeholder="Job title" value={jobForm.title} onChange={handleJobChange} required /><br /><br />
           <textarea name="description" placeholder="Job description" value={jobForm.description} onChange={handleJobChange} rows={3} required /><br /><br />
           <input name="location" placeholder="Location" value={jobForm.location} onChange={handleJobChange} /><br /><br />
+
           <select name="jobType" value={jobForm.jobType} onChange={handleJobChange}>
             <option value="full-time">Full-time</option>
             <option value="internship">Internship</option>
           </select><br /><br />
+
           <input name="packageLPA" type="number" step="0.1" min="0" placeholder="Package (LPA)" value={jobForm.packageLPA} onChange={handleJobChange} /><br /><br />
           <input name="skillsRequired" placeholder="Skills required (comma separated)" value={jobForm.skillsRequired} onChange={handleJobChange} /><br /><br />
 
@@ -145,21 +151,48 @@ export default function CompanyDashboard() {
 
           <label>Application deadline: </label>
           <input name="deadline" type="date" value={jobForm.deadline} onChange={handleJobChange} required /><br /><br />
+
           <button type="submit">Post Job</button>
         </fieldset>
       </form>
 
       <h3>My Jobs ({jobs.length})</h3>
+
       {jobs.length === 0 && <p>No jobs posted yet.</p>}
+
       {jobs.map((job) => (
-        <div key={job._id} style={{ border: '1px solid #ccc', padding: 12, marginBottom: 10, borderRadius: 6 }}>
+        <div
+          key={job._id}
+          style={{
+            border: '1px solid #ccc',
+            padding: 12,
+            marginBottom: 10,
+            borderRadius: 6
+          }}
+        >
           <strong>{job.title}</strong> ({job.jobType}) &middot; {job.packageLPA} LPA &middot; {job.location}
+
           <p style={{ margin: '6px 0' }}>
             Min CGPA: {job.eligibility.minCgpa} | Max backlogs: {job.eligibility.maxBacklogs} |
-            Departments: {job.eligibility.departments.length ? job.eligibility.departments.join(', ') : 'All'}
+            Departments: {job.eligibility.departments.length
+              ? job.eligibility.departments.join(', ')
+              : 'All'}
           </p>
+
           <small>Deadline: {new Date(job.deadline).toLocaleDateString()}</small><br />
-          <button onClick={() => deleteJob(job._id)} style={{ marginTop: 6 }}>Delete</button>
+
+          <button
+            onClick={() => setOpenJobId(openJobId === job._id ? null : job._id)}
+            style={{ marginTop: 6, marginRight: 8 }}
+          >
+            {openJobId === job._id ? 'Hide Applicants' : 'View Applicants'}
+          </button>
+
+          <button onClick={() => deleteJob(job._id)} style={{ marginTop: 6 }}>
+            Delete
+          </button>
+
+          {openJobId === job._id && <JobApplicants jobId={job._id} />}
         </div>
       ))}
     </div>
