@@ -44,6 +44,7 @@ export default function JobApplicants({ jobId }) {
               <th>CGPA</th>
               <th>Backlogs</th>
               <th>Skills</th>
+              <th>Resume</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -60,6 +61,15 @@ export default function JobApplicants({ jobId }) {
                 <td>{a.profile?.cgpa ?? '-'}</td>
                 <td>{a.profile?.backlogs ?? '-'}</td>
                 <td>{a.profile?.skills?.join(', ') || '-'}</td>
+                <td>
+                  {a.profile?.resumeUrl ? (
+                    <a href={a.profile.resumeUrl} target="_blank" rel="noopener noreferrer">
+                      View
+                    </a>
+                  ) : (
+                    <em>None</em>
+                  )}
+                </td>
                 <td>
                   <span
                     style={{

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import EligibleJobs from '../components/EligibleJobs';
 import MyApplications from '../components/MyApplications';
 import StudentProfileForm from '../components/StudentProfileForm';
+import ResumeUpload from '../components/ResumeUpload';
 
 export default function StudentDashboard() {
   const { user, logout } = useAuth();
@@ -26,7 +27,12 @@ export default function StudentDashboard() {
 
       {tab === 'jobs' && <EligibleJobs onGoProfile={() => setTab('profile')} />}
       {tab === 'applications' && <MyApplications />}
-      {tab === 'profile' && <StudentProfileForm />}
+      {tab === 'profile' && (
+        <>
+          <StudentProfileForm />
+          <ResumeUpload />
+        </>
+      )}
     </div>
   );
 }
