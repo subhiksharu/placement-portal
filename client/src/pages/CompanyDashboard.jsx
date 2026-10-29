@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import JobApplicants from '../components/JobApplicants';
+import NotificationBell from '../components/NotificationBell';
 
 const emptyProfile = { companyName: '', website: '', industry: '', description: '' };
 const emptyJob = {
@@ -70,7 +71,7 @@ export default function CompanyDashboard() {
         description: jobForm.description,
         location: jobForm.location,
         jobType: jobForm.jobType,
-        packageLPA: Number(jobForm.packageLPA),
+        packageLPA: jobForm.packageLPA ? Number(jobForm.packageLPA) : undefined,
         skillsRequired: toList(jobForm.skillsRequired),
         eligibility: {
           minCgpa: Number(jobForm.minCgpa) || 0,
@@ -99,7 +100,10 @@ export default function CompanyDashboard() {
   return (
     <div style={{ maxWidth: 720, margin: '30px auto', padding: '0 16px' }}>
       <h2>Company Dashboard: {user.name}</h2>
-      <button onClick={logout}>Logout</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <NotificationBell />
+        <button onClick={logout}>Logout</button>
+      </div>
 
       <h3>
         Company Profile{' '}
@@ -173,8 +177,8 @@ export default function CompanyDashboard() {
           <strong>{job.title}</strong> ({job.jobType}) &middot; {job.packageLPA} LPA &middot; {job.location}
 
           <p style={{ margin: '6px 0' }}>
-            Min CGPA: {job.eligibility.minCgpa} | Max backlogs: {job.eligibility.maxBacklogs} |
-            Departments: {job.eligibility.departments.length
+            Min CGPA: {job.eligibility?.minCgpa ?? 0} | Max backlogs: {job.eligibility?.maxBacklogs ?? 0} |
+            Departments: {job.eligibility?.departments?.length
               ? job.eligibility.departments.join(', ')
               : 'All'}
           </p>

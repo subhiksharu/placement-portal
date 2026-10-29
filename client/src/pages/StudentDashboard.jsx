@@ -4,6 +4,7 @@ import EligibleJobs from '../components/EligibleJobs';
 import MyApplications from '../components/MyApplications';
 import StudentProfileForm from '../components/StudentProfileForm';
 import ResumeUpload from '../components/ResumeUpload';
+import NotificationBell from '../components/NotificationBell';
 
 export default function StudentDashboard() {
   const { user, logout } = useAuth();
@@ -17,7 +18,10 @@ export default function StudentDashboard() {
   return (
     <div style={{ maxWidth: 720, margin: '30px auto', padding: '0 16px' }}>
       <h2>Welcome, {user.name}</h2>
-      <button onClick={logout}>Logout</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <NotificationBell />
+        <button onClick={logout}>Logout</button>
+      </div>
 
       <div style={{ margin: '16px 0' }}>
         <button style={tabStyle('jobs')} onClick={() => setTab('jobs')}>Jobs</button>

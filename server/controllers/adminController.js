@@ -2,6 +2,7 @@ const Company = require('../models/Company');
 const Job = require('../models/Job');
 const Application = require('../models/Application');
 const StudentProfile = require('../models/StudentProfile');
+const notify = require('../utils/notify');
 
 // GET /api/admin/companies?status=pending
 exports.getCompanies = async (req, res) => {
@@ -19,25 +20,29 @@ exports.getCompanies = async (req, res) => {
   }
 };
 
-// PATCH /api/admin/companies/:id/status
+// PATCH /api/admin/companies/:id/status   body: { "status": "approved" }
 exports.updateCompanyStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
     if (!['approved', 'rejected'].includes(status)) {
-      return res
-        .status(400)
-        .json({ message: 'Status must be approved or rejected' });
+      return res.status(400).json({ message: 'Status must be approved or rejected' });
     }
 
-    const company = await Company.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const company = await Company.findById(req.params.id);
+    if (!company) return res.status(404).json({ message: 'Company not found' });
 
-    if (!company) {
-      return res.status(404).json({ message: 'Company not found' });
+    // Only act (and notify) when the status really changes
+    if (company.status !== status) {
+      company.status = status;
+      await company.save();
+
+      await notify(
+        company.user,
+        status === 'approved'
+          ? `Your company "${company.companyName}" has been approved. You can now post jobs.`
+          : `Your company "${company.companyName}" was rejected by the TPO.`
+      );
     }
 
     res.json(company);
@@ -121,7 +126,7 @@ exports.getAnalytics = async (req, res) => {
             _id: {
               $toUpper: {
                 $trim: {
-                  input: '$department',
+                  input: { $ifNull: ['$department', 'OTHER'] },
                 },
               },
             },
@@ -282,7 +287,7 @@ exports.getAnalytics = async (req, res) => {
     const placedStudents = placedAgg.length;
 
     res.json({
-      batches: batches.sort((a, b) => a - b),
+      batches: batches.filter((b) => typeof b === 'number').sort((a, b) => a - b),
 
       summary: {
         totalStudents,
@@ -303,7 +308,7 @@ exports.getAnalytics = async (req, res) => {
         totalOffers:
           statusCounts.find(
             (s) => s.status === 'selected'
-          ).count,
+          )?.count || 0,
 
         avgPackage: packages.length
           ? Math.round(
@@ -312,7 +317,7 @@ exports.getAnalytics = async (req, res) => {
           : 0,
 
         highestPackage: packages.length
-          ? Math.max(...packages)
+          ? packages.reduce((max, p) => (p > max ? p : max), 0)
           : 0,
 
         approvedCompanies,

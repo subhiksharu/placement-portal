@@ -3,9 +3,11 @@ const Application = require('../models/Application');
 const Job = require('../models/Job');
 const Company = require('../models/Company');
 const StudentProfile = require('../models/StudentProfile');
+const User = require('../models/User');
 const { checkEligibility } = require('../utils/eligibility');
+const notify = require('../utils/notify');
 
-// Allowed status changes. Anything not listed here is rejected.
+// Allowed status changes
 const TRANSITIONS = {
   applied: ['shortlisted', 'rejected'],
   shortlisted: ['interview', 'rejected'],
@@ -14,16 +16,35 @@ const TRANSITIONS = {
   rejected: [],
 };
 
+// Notification messages for application status changes
+const STATUS_MESSAGES = {
+  shortlisted: (job, company) =>
+    `${company} shortlisted you for "${job}"`,
+
+  interview: (job, company) =>
+    `${company} has called you for an interview for "${job}"`,
+
+  selected: (job, company) =>
+    `Congratulations! ${company} selected you for "${job}"`,
+
+  rejected: (job, company) =>
+    `${company} did not move forward with your application for "${job}"`,
+};
+
 // ---------- STUDENT: apply to a job ----------
 exports.applyToJob = async (req, res) => {
   try {
     const { jobId } = req.body;
 
     if (!mongoose.isValidObjectId(jobId)) {
-      return res.status(400).json({ message: 'Invalid job id' });
+      return res.status(400).json({
+        message: 'Invalid job id',
+      });
     }
 
-    const profile = await StudentProfile.findOne({ user: req.user.id });
+    const profile = await StudentProfile.findOne({
+      user: req.user.id,
+    });
 
     if (!profile) {
       return res.status(400).json({
@@ -38,7 +59,10 @@ exports.applyToJob = async (req, res) => {
       });
     }
 
-    const job = await Job.findById(jobId).populate('company', 'status');
+    const job = await Job.findById(jobId).populate(
+      'company',
+      'status user companyName'
+    );
 
     if (
       !job ||
@@ -51,7 +75,7 @@ exports.applyToJob = async (req, res) => {
       });
     }
 
-    // Same "start of today" rule as the eligible-jobs list
+    // Check whether the application deadline has passed
     const startOfToday = new Date();
     startOfToday.setUTCHours(0, 0, 0, 0);
 
@@ -61,7 +85,7 @@ exports.applyToJob = async (req, res) => {
       });
     }
 
-    // Re-check eligibility on the server. Never trust the frontend.
+    // Check eligibility on the server
     const result = checkEligibility(profile, job);
 
     if (!result.eligible) {
@@ -71,14 +95,23 @@ exports.applyToJob = async (req, res) => {
       });
     }
 
+    // Create the application
     const application = await Application.create({
       student: req.user.id,
       job: job._id,
     });
 
+    // Notify the company about the new applicant
+    const applicant = await User.findById(req.user.id).select('name');
+
+    await notify(
+      job.company.user,
+      `${applicant?.name || 'A student'} applied for "${job.title}"`
+    );
+
     res.status(201).json(application);
   } catch (err) {
-    // 11000 = duplicate key error from the unique index
+    // Handle duplicate applications
     if (err.code === 11000) {
       return res.status(409).json({
         message: 'You have already applied to this job',
@@ -136,7 +169,7 @@ exports.getJobApplicants = async (req, res) => {
       });
     }
 
-    // Matching on company too means you can only see applicants of YOUR jobs
+    // Only allow access to this company's jobs
     const job = await Job.findOne({
       _id: jobId,
       company: company._id,
@@ -157,7 +190,7 @@ exports.getJobApplicants = async (req, res) => {
         .lean()
     ).filter((a) => a.student);
 
-    // Hide internal Cloudinary public ID from companies
+    // Hide the internal Cloudinary public ID
     const profiles = await StudentProfile.find({
       user: {
         $in: applications.map((a) => a.student._id),
@@ -174,7 +207,7 @@ exports.getJobApplicants = async (req, res) => {
       _id: a._id,
       status: a.status,
       appliedAt: a.createdAt,
-      allowedNext: TRANSITIONS[a.status],
+      allowedNext: TRANSITIONS[a.status] || [],
       student: a.student,
       profile: profileByUser.get(String(a.student._id)) || null,
     }));
@@ -216,9 +249,9 @@ exports.updateStatus = async (req, res) => {
 
     const application = await Application.findById(
       req.params.id
-    ).populate('job', 'company');
+    ).populate('job', 'company title');
 
-    // Ownership check: the application's job must belong to this company
+    // Verify that the job belongs to this company
     if (
       !application ||
       !application.job ||
@@ -229,21 +262,34 @@ exports.updateStatus = async (req, res) => {
       });
     }
 
+    // Validate the status transition
     const allowed = TRANSITIONS[application.status];
 
-    if (!allowed.includes(status)) {
+    if (!allowed || !allowed.includes(status)) {
       return res.status(400).json({
         message: `Cannot move from "${application.status}" to "${status}"`,
       });
     }
 
+    // Update the application status
     application.status = status;
     await application.save();
+
+    // Notify the student about the status change
+    if (STATUS_MESSAGES[status]) {
+      await notify(
+        application.student,
+        STATUS_MESSAGES[status](
+          application.job.title,
+          company.companyName
+        )
+      );
+    }
 
     res.json({
       _id: application._id,
       status: application.status,
-      allowedNext: TRANSITIONS[application.status],
+      allowedNext: TRANSITIONS[application.status] || [],
     });
   } catch (err) {
     res.status(500).json({
