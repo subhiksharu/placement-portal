@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '../services/api';
 import { statusColor, statusLabel } from '../utils/status';
 
@@ -7,16 +7,20 @@ export default function JobApplicants({ jobId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = () =>
+  const load = useCallback(() => {
     api
       .get(`/applications/job/${jobId}`)
-      .then(({ data }) => setApplicants(data.applicants))
+      .then(({ data }) => {
+        setApplicants(data.applicants || []);
+        setError('');
+      })
       .catch((err) => setError(err.response?.data?.message || 'Could not load applicants'))
       .finally(() => setLoading(false));
+  }, [jobId]);
 
   useEffect(() => {
     load();
-  }, [jobId]);
+  }, [load]);
 
   const changeStatus = async (id, status) => {
     setError('');
@@ -83,7 +87,7 @@ export default function JobApplicants({ jobId }) {
                   </span>
                 </td>
                 <td>
-                  {a.allowedNext.length === 0 ? (
+                  {!a.allowedNext || a.allowedNext.length === 0 ? (
                     <em>Final</em>
                   ) : (
                     a.allowedNext.map((next) => (

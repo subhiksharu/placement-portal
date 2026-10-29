@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '../services/api';
 
 export default function CompanyApprovals() {
@@ -6,15 +6,16 @@ export default function CompanyApprovals() {
   const [filter, setFilter] = useState('pending');
   const [error, setError] = useState('');
 
-  const loadCompanies = () =>
+  const loadCompanies = useCallback(() => {
     api
       .get('/admin/companies', { params: filter ? { status: filter } : {} })
       .then(({ data }) => setCompanies(data))
       .catch(() => setError('Could not load companies'));
+  }, [filter]);
 
   useEffect(() => {
     loadCompanies();
-  }, [filter]);
+  }, [loadCompanies]);
 
   const changeStatus = async (id, status) => {
     try {

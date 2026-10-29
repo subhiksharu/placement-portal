@@ -19,7 +19,12 @@ export default function Register() {
       const user = await register(form);
       navigate(homeFor[user.role]);
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      const message =
+        err.response?.data?.message ||
+        (err.code === 'ERR_NETWORK' || err.message === 'Network Error'
+          ? 'Cannot connect to backend server. Please verify the server is running.'
+          : 'Registration failed. Please check your details and try again.');
+      setError(message);
     }
   };
 

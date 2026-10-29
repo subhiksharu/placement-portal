@@ -12,7 +12,17 @@ export default function StudentProfileForm() {
 
   useEffect(() => {
     api.get('/students/profile').then(({ data }) => {
-      if (data) setForm({ ...data, skills: data.skills.join(', ') });
+      if (data) {
+        setForm({
+          rollNumber: data.rollNumber || '',
+          department: data.department || '',
+          batch: data.batch ?? '',
+          cgpa: data.cgpa ?? '',
+          backlogs: data.backlogs ?? 0,
+          phone: data.phone || '',
+          skills: Array.isArray(data.skills) ? data.skills.join(', ') : (data.skills || ''),
+        });
+      }
     });
   }, []);
 
@@ -22,12 +32,20 @@ export default function StudentProfileForm() {
     e.preventDefault();
     setMessage('');
     try {
+      const skillsArray = typeof form.skills === 'string'
+        ? form.skills.split(',').map((s) => s.trim()).filter(Boolean)
+        : Array.isArray(form.skills)
+        ? form.skills
+        : [];
+
       await api.put('/students/profile', {
-        ...form,
+        rollNumber: form.rollNumber,
+        department: form.department,
         batch: Number(form.batch),
         cgpa: Number(form.cgpa),
         backlogs: Number(form.backlogs),
-        skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
+        phone: form.phone,
+        skills: skillsArray,
       });
       setMessage('Profile saved');
     } catch (err) {

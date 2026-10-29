@@ -86,7 +86,7 @@ export default function ResumeUpload() {
       <input
         key={inputKey}
         type="file"
-        accept=".pdf,.docx,.png"
+        accept="application/pdf,.pdf"
         onChange={handleSelect}
       />
       <button onClick={upload} disabled={!file || busy} style={{ marginLeft: 8 }}>

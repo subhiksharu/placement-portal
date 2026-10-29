@@ -19,7 +19,12 @@ export default function Login() {
       const user = await login(form.email, form.password);
       navigate(homeFor[user.role]);
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      const message =
+        err.response?.data?.message ||
+        (err.code === 'ERR_NETWORK' || err.message === 'Network Error'
+          ? 'Cannot connect to backend server. Please verify the server is running.'
+          : 'Login failed. Please check your credentials and try again.');
+      setError(message);
     }
   };
 

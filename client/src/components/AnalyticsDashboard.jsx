@@ -26,11 +26,24 @@ export default function AnalyticsDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setError('');
+    let active = true;
     api
       .get('/admin/analytics', { params: batch ? { batch } : {} })
-      .then(({ data }) => setData(data))
-      .catch((err) => setError(err.response?.data?.message || 'Could not load analytics'));
+      .then(({ data }) => {
+        if (active) {
+          setData(data);
+          setError('');
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setError(err.response?.data?.message || 'Could not load analytics');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [batch]);
 
   if (error) return <p style={{ color: 'crimson' }}>{error}</p>;

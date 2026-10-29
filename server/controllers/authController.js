@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Company = require('../models/Company');
 
 const createToken = (user) =>
   jwt.sign(
@@ -19,13 +20,21 @@ exports.register = async (req, res) => {
       });
     }
 
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({
+        message: 'Password must be at least 6 characters',
+      });
+    }
+
     if (role && !['student', 'company'].includes(role)) {
       return res.status(400).json({
         message: 'Invalid role',
       });
     }
 
-    const exists = await User.findOne({ email });
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    const exists = await User.findOne({ email: cleanEmail });
 
     if (exists) {
       return res.status(400).json({
@@ -36,11 +45,19 @@ exports.register = async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email,
+      name: String(name).trim(),
+      email: cleanEmail,
       password: hashed,
-      role,
+      role: role || 'student',
     });
+
+    if (user.role === 'company') {
+      await Company.create({
+        user: user._id,
+        companyName: user.name,
+        status: 'pending',
+      });
+    }
 
     res.status(201).json({
       token: createToken(user),
@@ -62,7 +79,14 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({
+        message: 'All fields are required',
+      });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
 
     if (!user) {
       return res.status(400).json({
@@ -93,6 +117,7 @@ exports.login = async (req, res) => {
     });
   }
 };
+
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
